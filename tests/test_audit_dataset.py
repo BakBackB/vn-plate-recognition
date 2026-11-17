@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-import audit_dataset as ad
+from scripts import audit_dataset as ad
 
 
 def _img(p):

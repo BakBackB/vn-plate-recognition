@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-import train_detector as td
+from scripts import train_detector as td
 from vnplate.config import DetectorConfig, DetectorTrainConfig
 
 

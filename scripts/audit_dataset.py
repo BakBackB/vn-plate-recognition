@@ -19,7 +19,7 @@ from typing import Dict, Set
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from convert_labels import _TOKEN_SPLIT, find_samples  # noqa: E402
+from scripts.convert_labels import _TOKEN_SPLIT, find_samples  # noqa: E402
 
 DEFAULT_GROUP_REGEX = r"^(.+)_\d+$"
 
