@@ -16,13 +16,28 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "config.yaml"
 
 # ---------------------------------------------------------------- sections
 @dataclass(frozen=True)
+class DetectorTrainConfig:
+    """Hyperparameters for scripts/train_detector.py (YAML: detector.train)."""
+    pretrained: str = "yolov8n-obb.pt"
+    data: Path = PROJECT_ROOT / "configs" / "plate_data.yaml"
+    epochs: int = 100
+    batch: int = 16
+    degrees: float = 10.0
+    perspective: float = 0.0005
+    fliplr: float = 0.0                      # mirrored plates never occur
+    hsv_v: float = 0.5
+    mosaic: float = 1.0
+
+
+@dataclass(frozen=True)
 class DetectorConfig:
     weights: Path
     imgsz: int = 640
     conf_threshold: float = 0.25
     min_area_px: float = 400.0
     device: str = "auto"                     # "auto" | "mps" | "cpu"
-
+    train: DetectorTrainConfig = field(default_factory=DetectorTrainConfig)
+    agnostic_nms: bool = True                # one plate = one detection across BSD/BSV
 
 @dataclass(frozen=True)
 class PreprocessConfig:
@@ -74,6 +89,18 @@ def _load_provinces(path: Path) -> FrozenSet[str]:
     return frozenset(str(c).zfill(2) for c in codes)
 
 
+def _validate_train(t: DetectorTrainConfig) -> None:
+    if t.epochs < 1 or t.batch < 1:
+        raise ValueError("detector.train.epochs and batch must be >= 1")
+    for name in ("fliplr", "hsv_v", "mosaic"):
+        if not 0.0 <= getattr(t, name) <= 1.0:
+            raise ValueError(f"detector.train.{name} must be in [0, 1]")
+    if not 0.0 <= t.degrees <= 180.0:
+        raise ValueError("detector.train.degrees must be in [0, 180]")
+    if not 0.0 <= t.perspective <= 0.001:
+        raise ValueError("detector.train.perspective must be in [0, 0.001]")
+
+
 def _validate(cfg: Config) -> None:
     pre = cfg.preprocess
     for name in LAYOUTS:
@@ -83,6 +110,7 @@ def _validate(cfg: Config) -> None:
         raise ValueError("layout_ratio_threshold must be > 1")
     if not 0.0 <= cfg.detector.conf_threshold <= 1.0:
         raise ValueError("detector.conf_threshold must be in [0, 1]")
+    _validate_train(cfg.detector.train)
     if not 0.0 <= cfg.postprocess.min_confidence <= 1.0:
         raise ValueError("postprocess.min_confidence must be in [0, 1]")
     if not cfg.postprocess.province_codes:
@@ -98,12 +126,26 @@ def load_config(path: Optional[Union[str, Path]] = None) -> Config:
         raw = yaml.safe_load(f)
 
     d = raw["detector"]
+    t = d.get("train") or {}
+    train = DetectorTrainConfig(
+        pretrained=str(t.get("pretrained", "yolov8n-obb.pt")),
+        data=_resolve(t.get("data", "configs/plate_data.yaml"), root),
+        epochs=int(t.get("epochs", 100)),
+        batch=int(t.get("batch", 16)),
+        degrees=float(t.get("degrees", 10.0)),
+        perspective=float(t.get("perspective", 0.0005)),
+        fliplr=float(t.get("fliplr", 0.0)),
+        hsv_v=float(t.get("hsv_v", 0.5)),
+        mosaic=float(t.get("mosaic", 1.0)),
+    )
     detector = DetectorConfig(
         weights=_resolve(d["weights"], root),
         imgsz=int(d.get("imgsz", 640)),
         conf_threshold=float(d.get("conf_threshold", 0.25)),
         min_area_px=float(d.get("min_area_px", 400)),
         device=str(d.get("device", "auto")),
+        train=train,
+        agnostic_nms=bool(d.get("agnostic_nms", True)),
     )
 
     p = raw["preprocess"]
