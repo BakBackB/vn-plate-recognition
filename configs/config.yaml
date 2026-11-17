@@ -1,19 +1,30 @@
 detector:
   weights: weights/plate_obb.pt
-  imgsz: 640
+  imgsz: 640                  # shared by training and inference
   conf_threshold: 0.25
-  min_area_px: 400 # ignore plates too small to read
-  device: auto # (addition) auto -> mps if available else cpu
+  min_area_px: 400            # ignore plates too small to read
+  device: auto                # (addition) auto -> mps if available else cpu
+  agnostic_nms: true          # (addition) merge overlapping BSD/BSV boxes into one
+  train:                      # (addition) used only by scripts/train_detector.py
+    pretrained: yolov8n-obb.pt
+    data: configs/plate_data.yaml
+    epochs: 100
+    batch: 16
+    degrees: 10
+    perspective: 0.0005
+    fliplr: 0.0
+    hsv_v: 0.5
+    mosaic: 1.0
 
 preprocess:
   layout_ratio_threshold: 2.5 # tau in the layout rule
-  canvas: # (width, height) px, ~2 px per mm
+  canvas:                     # (width, height) px, ~2 px per mm
     one_row: [940, 220]
     two_row: [560, 400]
   # (addition) enhancement parameters, previously hard-coded in pseudocode
-  bilateral: { d: 7, sigma_color: 40, sigma_space: 40 }
-  clahe: { clip_limit: 2.0, tile_grid: [4, 4] }
-  unsharp: { sigma: 1.0, amount: 0.6 }
+  bilateral: {d: 7, sigma_color: 40, sigma_space: 40}
+  clahe: {clip_limit: 2.0, tile_grid: [4, 4]}
+  unsharp: {sigma: 1.0, amount: 0.6}
 
 recognizer:
   alphabet: "0123456789ABCDEFGHKLMNPRSTUVXYZ-."
