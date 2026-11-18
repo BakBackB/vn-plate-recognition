@@ -8,3 +8,5 @@ weights/
 *.pt
 runs/
 .DS_Store
+*.zip
+outputs
