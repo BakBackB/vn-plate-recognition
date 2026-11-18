@@ -30,7 +30,7 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from convert_labels import _prepare_output, _read_image, find_samples  # noqa: E402
+from scripts.convert_labels import _prepare_output, _read_image, find_samples  # noqa: E402
 from vnplate.utils.geometry import polygon_area  # noqa: E402
 
 log = logging.getLogger("resplit_dataset")
