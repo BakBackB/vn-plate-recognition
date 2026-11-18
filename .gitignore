@@ -6,3 +6,5 @@ __pycache__/
 data/
 weights/
 *.pt
+runs/
+.DS_Store
