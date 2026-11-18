@@ -7,7 +7,7 @@ detector:
   agnostic_nms: true          # (addition) merge overlapping BSD/BSV boxes into one
   train:                      # (addition) used only by scripts/train_detector.py
     pretrained: yolov8n-obb.pt
-    data: configs/plate_data.yaml
+    data: configs/plate_data_resplit.yaml
     epochs: 100
     batch: 16
     degrees: 10
