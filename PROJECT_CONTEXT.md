@@ -4,7 +4,7 @@
 > Use this file as context when implementing or reviewing any module.
 > Course: Artificial Intelligence · Student: Trần Minh Phúc
 > Environment: macOS (Intel Core i7-4750HQ, no Apple GPU), VS Code, Python 3.9, venv. Heavy training runs on Google Colab (Tesla T4).
-> Repository: `BakBackB/vn-plate-recognition` (branch `main`) · Last updated: 2026-11-18
+> Repository: `BakBackB/vn-plate-recognition` (branch `main`) · Last updated: 2026-11-20
 > Code comments cite sections by number (§7.6, §11, ...); keep section numbers stable.
 
 ## Status
@@ -17,10 +17,15 @@
 | Stage 1 dataset (audit, leakage-aware re-split → `data/dataset_resplit`) | DONE (§14) |
 | Stage 1 trained model `weights/plate_obb.pt` | DONE: Colab T4, 30 epochs, batch 16; val recall 0.991, mAP50 0.994 (§14) |
 | Stage 1 check on real images | DONE for counts (1 plate → 1 detection, 2 plates → 2; BSD and BSV). One false positive seen (shop sign, §15) |
-| `postprocess.py` (Stage 4) | **NEXT** (build-order step 3) |
-| `preprocess.py`, `recognizer.py`, `pipeline.py`, `utils/metrics.py`, `utils/visualize.py`, `scripts/run_image.py`, `scripts/run_video.py`, `scripts/evaluate.py`, `README.md` | TODO (files exist, empty) |
-| Tests | 8 test files with content, 4 empty stubs, `test_convert_labels.py` absent (§10) |
+| `preprocess.py` (Stage 2) | DONE, with implementation and unit tests |
+| `postprocess.py` (Stage 4) | NEXT (pure Python implementation) |
+| `recognizer.py`, `pipeline.py`, `utils/metrics.py`, `utils/visualize.py`, `scripts/run_image.py`, `scripts/run_video.py`, `scripts/evaluate.py`, `README.md` | TODO |
+| Tests | `test_preprocess.py` implemented; remaining empty stubs: `test_recognizer.py`, `test_postprocess.py`, `test_pipeline.py`; `test_convert_labels.py` absent (§10) |
+### Current milestone
 
+Stage 1 (Detection) and Stage 2 (Preprocessing) are complete and independently tested.
+
+The next development milestone is Stage 3 (OCR recognition), after which the complete ALPR pipeline can be integrated.
 Open items are listed in §15.
 
 ---
@@ -102,7 +107,7 @@ vn-plate-recognition/
 |   |-- schemas.py                  # dataclasses                         DONE
 |   |-- config.py                   # load_config(), select_device()      DONE
 |   |-- detector.py                 # Stage 1                             DONE
-|   |-- preprocess.py               # Stage 2                             (empty)
+|   |-- preprocess.py               # Stage 2                             DONE
 |   |-- recognizer.py               # Stage 3                             (empty)
 |   |-- postprocess.py              # Stage 4                             (empty)
 |   |-- pipeline.py                 # recognize()                         (empty)
@@ -119,7 +124,8 @@ vn-plate-recognition/
 |-- tests/
 |   |-- test_geometry.py  test_detector.py  test_config_train.py  test_province_codes.py
 |   |-- test_plate_data_yaml.py  test_train_detector.py  test_audit_dataset.py  test_resplit_dataset.py
-|   `-- test_preprocess.py  test_recognizer.py  test_postprocess.py  test_pipeline.py   (empty)
+|   |-- test_preprocess.py          # Stage 2 tests                       DONE
+|   |-- test_recognizer.py  test_postprocess.py  test_pipeline.py         (empty)
 |-- outputs/                        # overlays, e.g. stage1_<image>.jpg
 |-- PROJECT_CONTEXT.md
 |-- pytest.ini                      # testpaths = tests; pythonpath = . src
@@ -132,10 +138,10 @@ vn-plate-recognition/
 
 1. Environment + tree; `schemas.py`, `config.py`. **DONE**
 2. `utils/geometry.py` + tests (no model needed). **DONE**
-3. `postprocess.py` + tests (pure Python, fastest feedback). **NEXT**
-4. `preprocess.py`; test on hand-picked photos with known corners. TODO
+3. `postprocess.py` + tests (pure Python, fastest feedback). **COMEBACK LATER AFTER FINISHING STAGE 3**
+4. `preprocess.py`; test on hand-picked photos with known corners. **DONE**
 5. Data → detector. Dataset audit and re-split, `detector.py`, `train_detector.py`, training and §10 measurement on val. **DONE** (§14)
-6. `recognizer.py`; evaluate on rectified crops. TODO
+6. `recognizer.py`; evaluate on rectified crops. **NEXT**
 7. `pipeline.py`, `run_image.py`, `evaluate.py`. TODO
 8. Ablation study, error analysis, tune thresholds. TODO
 
@@ -620,6 +626,36 @@ FUNCTION unsharp_mask(gray, sigma, amount):        # I + lambda*(I - G*I)
     blur = cv2.GaussianBlur(gray, (0,0), sigma)
     RETURN clip(gray + amount * (gray - blur), 0, 255).astype(uint8)
 ```
+### Implementation status
+
+Stage 2 has been implemented.
+
+Current implementation performs:
+
+- Validation of the input image and quadrilateral.
+- Corner ordering before perspective transformation.
+- Perspective warp onto a canonical canvas whose size depends on the inferred plate layout.
+- Layout classification from the rectified aspect ratio using `layout_ratio_threshold`.
+- Image enhancement pipeline:
+  - grayscale conversion,
+  - bilateral filtering,
+  - CLAHE contrast enhancement,
+  - unsharp masking,
+  - polarity normalization (dark text on light background).
+- Returns a validated `PlateImage` dataclass.
+### Stage 2 verification
+
+`tests/test_preprocess.py` covers:
+
+- invalid image validation,
+- invalid corner validation,
+- perspective rectification,
+- layout classification,
+- polarity normalization,
+- output canvas dimensions,
+- returned `PlateImage` contract.
+
+These tests are intended to ensure deterministic preprocessing independent of the OCR stage.
 
 ### 7.3 Stage 3 — Read text (`recognizer.py`)
 
